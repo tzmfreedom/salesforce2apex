@@ -14,10 +14,11 @@ class Workflow2ApexConverter {
     parseString(xml_data, (err, result) => {
       // console.log(require('util').inspect(result, {colors: true, depth: 10}))
 
-      const rules = result.Workflow.rules
       const fieldUpdates = result.Workflow.fieldUpdates
 
-      rules.forEach((rule) => {
+      const triggerName = `${objectName.replace(/__c/, '')}Trigger`
+
+      const rules = result.Workflow.rules.map((rule) => {
         if (rule.active[0] == 'false') return
 
         if (rule.formula) {
@@ -33,14 +34,18 @@ class Workflow2ApexConverter {
             })
           })
 
-          const triggerName = `${objectName}Trigger`
-          this.renderCode(triggerName, objectName, conditions, actions)
+          return {
+            condition: conditions.join(' AND '),
+            actions,
+          }
         }
-      })
+      }).filter((rule) => rule )
+
+      this.renderCode(triggerName, objectName, rules)
     })
   }
 
-  renderCode(triggerName, objectName, conditions, actions) {
+  renderCode(triggerName, objectName, rules) {
     const formulaToCode = (formula) => {
       return formula
     }
@@ -52,13 +57,11 @@ class Workflow2ApexConverter {
       }
     }
 
-    const condition = conditions.join(' AND ')
 
     ejs.renderFile(WORKFLOW_TEMPLATE_PATH, {
       triggerName,
       objectName,
-      condition,
-      actions,
+      rules,
       toApexCode
     }, {}, function (err, str) {
       if (err) {

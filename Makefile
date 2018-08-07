@@ -1,3 +1,3 @@
 .PHONY: run
 run:
-	node ./index.js
+	@node ./index.js
