@@ -1,0 +1,11 @@
+trigger <%= triggerName %> on <%= objectName %> (before update) {
+  if (Trigger.isBefore && Trigger.isUpdate) {
+    for (<%= objectName %> record : Trigger.New) {
+      if (<%- condition %>) {
+        <% actions.forEach((action) => { %>
+          <%- toApexCode(action) %>
+        <% }) %>
+      }
+    }
+  }
+}
