@@ -2,6 +2,8 @@ const fs = require('fs')
 const parseString = require('xml2js').parseString
 const ejs = require('ejs')
 
+const parse = require('salesforce-formula-parser')
+
 const WORKFLOW_OP_MAP = {
   equals: '==',
 }
@@ -47,7 +49,15 @@ class Workflow2ApexConverter {
 
   renderCode(triggerName, objectName, rules) {
     const formulaToCode = (formula) => {
-      return formula
+      const result = parse(formula)
+      if (result.type == 'string') {
+        return `'${result.value}'`
+      } else if (result.type == 'integer') {
+        return result.value
+      } else if (result.type == 'function') {
+        return result
+      }
+      return result
     }
 
     const toApexCode = (action) => {
