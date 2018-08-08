@@ -1,5 +1,5 @@
-trigger <%= triggerName %> on <%= objectName %> (before update) {
-  if (Trigger.isBefore && Trigger.isUpdate) {
+trigger <%= triggerName %> on <%= objectName %> (<%= triggerTiming.on %>) {
+  if (<%- triggerTiming.condition %>) {
     for (<%= objectName %> newRecord : Trigger.New) {
       <%= objectName %> oldRecord = Trigger.oldMap.get(newRecord.id);
       <% rules.forEach((rule) => { %>

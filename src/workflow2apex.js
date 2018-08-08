@@ -24,6 +24,29 @@ const convert = (objectName, fileName) => {
 
     const triggerName = `${objectName.replace(/__c/, '')}Trigger`
 
+    const triggerTypes = result.Workflow.rules
+                                        .map((rule) => rule.triggerType)
+                                        .filter((x, i, self) => self.indexOf(x) === i)
+
+    const triggerTiming = (() => {
+      if (triggerTypes.includes('onAllChanges')) {
+        return {
+          on: 'before update, before insert',
+          condition: 'Trigger.isBefore && (Trigger.isInsert || Trigger.isUpdate)'
+        }
+      } else if (triggerTypes.includes('onCreateOrTriggeringUpdate')) {
+        return {
+          on: 'before update, before insert',
+          condition: 'Trigger.isBefore && (Trigger.isInsert || Trigger.isUpdate)'
+        }
+      } else if (triggerTypes.includes('onCreateOnly')) {
+        return {
+          on: 'before insert',
+          condition: 'Trigger.isBefore && Trigger.isInsert'
+        }
+      }
+    })()
+
     const rules = result.Workflow.rules.map((rule) => {
       const triggerType = rule.triggerType
 
@@ -78,11 +101,11 @@ const convert = (objectName, fileName) => {
       }
     }).filter((rule) => rule )
 
-    renderCode(triggerName, objectName, rules)
+    renderCode(triggerName, objectName, rules, triggerTiming)
   })
 }
 
-const renderCode = (triggerName, objectName, rules) => {
+const renderCode = (triggerName, objectName, rules, triggerTiming) => {
   const formulaToCode = (formula) => {
     const result = parse(formula)
     if (result.type == 'string') {
@@ -106,7 +129,8 @@ const renderCode = (triggerName, objectName, rules) => {
     triggerName,
     objectName,
     rules,
-    toApexCode
+    toApexCode,
+    triggerTiming
   }, {}, function (err, str) {
     if (err) {
       console.error(err)
