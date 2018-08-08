@@ -1,3 +1,3 @@
 .PHONY: run
 run:
-	@node ./index.js
+	@bin/run -o TestObject__c -f workflows/TestObject__c.workflow

@@ -1,18 +1,49 @@
 {
   "name": "salesforce2apex",
-  "version": "1.0.0",
   "description": "Salesforce Apex Code Generator from Salesforce Workflow",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "version": "1.0.0",
   "author": "tzmfreedom",
-  "license": "MIT",
+  "bin": {
+    "salesforce2apex": "./bin/run"
+  },
+  "bugs": "https://github.com/tzmfreedom/salesforce2apex/issues",
   "dependencies": {
+    "@oclif/command": "^1.4.36",
+    "@oclif/config": "^1.6.33",
+    "@oclif/plugin-help": "^2.0.5",
     "ejs": "^2.6.1",
     "jsforce": "^1.9.0",
-    "salesforce-formula-parser": "^1.0.0",
+    "salesforce-formula-parser": "^1.0.2",
     "sformula": "^1.0.4",
     "xml2js": "^0.4.19"
+  },
+  "devDependencies": {
+    "@oclif/test": "^1.1.0",
+    "chai": "^4.1.2",
+    "eslint": "^4.19.1",
+    "eslint-config-oclif": "^1.5.1",
+    "mocha": "^5.2.0",
+    "nyc": "^12.0.2"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "files": [
+    "/bin",
+    "/src"
+  ],
+  "homepage": "https://github.com/tzmfreedom/salesforce2apex",
+  "keywords": [
+    "oclif"
+  ],
+  "license": "MIT",
+  "main": "./src/index.js",
+  "oclif": {
+    "bin": "salesforce2apex"
+  },
+  "repository": "tzmfreedom/salesforce2apex",
+  "scripts": {
+    "posttest": "eslint .",
+    "test": "nyc mocha --forbid-only \"test/**/*.test.js\""
   }
 }
