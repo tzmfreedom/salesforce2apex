@@ -7,6 +7,11 @@ const parse = require('salesforce-formula-parser')
 const WORKFLOW_OP_MAP = {
   equals: '==',
 }
+
+const WORKFLOW_NOT_OP_MAP = {
+  equals: '!=',
+}
+
 const WORKFLOW_TEMPLATE_PATH = 'templates/workflow.apex.ejs'
 
 const convert = (objectName, fileName) => {
@@ -20,6 +25,8 @@ const convert = (objectName, fileName) => {
     const triggerName = `${objectName.replace(/__c/, '')}Trigger`
 
     const rules = result.Workflow.rules.map((rule) => {
+      const triggerType = rule.triggerType
+
       if (rule.active[0] == 'false') return
 
       if (rule.formula) {
@@ -27,7 +34,20 @@ const convert = (objectName, fileName) => {
       } else {
         if (!Array.isArray(rule.criteriaItems)) rule.criteriaItems = [rule.criteriaItems]
         const conditions = rule.criteriaItems.map((criteriaItem) => {
-          return `${criteriaItem.field.replace(/^(.+?)\./, 'record.')} ${WORKFLOW_OP_MAP[criteriaItem.operation]} '${criteriaItem.value}'`
+          const newField = criteriaItem.field.replace(/^(.+?)\./, 'newRecord.')
+          const oldField = criteriaItem.field.replace(/^(.+?)\./, 'oldRecord.')
+          const operator = WORKFLOW_OP_MAP[criteriaItem.operation]
+          const not_operator = WORKFLOW_NOT_OP_MAP[criteriaItem.operation]
+          const value = criteriaItem.value
+
+          switch(triggerType) {
+            case 'onAllChanges':
+              return `${newField} ${operator} '${value}'`
+            case 'onCreateOnly':
+              return `${newField} ${operator} '${value}'`
+            case 'onCreateOrTriggeringUpdate':
+              return `(${oldField} ${not_operator} '${value}' && ${newField} ${operator} '${value}')`
+          }
         })
 
         if (!rule.actions) rule.actions = []

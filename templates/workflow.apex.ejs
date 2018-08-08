@@ -1,6 +1,7 @@
 trigger <%= triggerName %> on <%= objectName %> (before update) {
   if (Trigger.isBefore && Trigger.isUpdate) {
-    for (<%= objectName %> record : Trigger.New) {
+    for (<%= objectName %> newRecord : Trigger.New) {
+      <%= objectName %> oldRecord = Trigger.oldMap.get(newRecord.id);
       <% rules.forEach((rule) => { %>
       if (<%- rule.condition %>) {
         <% rule.actions.forEach((action) => { %>
