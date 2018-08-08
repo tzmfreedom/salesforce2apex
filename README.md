@@ -9,7 +9,8 @@ $ npm install -g salesforce2apex
 ```
 
 ```bash
-$ salesforce2apex -f /path/to/workflow-metadata.workflow > hoge.trigger
+$ salesforce2apex -o object-name -f /path/to/workflow-metadata.workflow > hoge.trigger
+// salesforce2apex -o Foo__c -f /path/to/Foo__c.workflow
 ```
 
 
