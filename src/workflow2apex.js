@@ -12,7 +12,7 @@ const WORKFLOW_TEMPLATE_PATH = 'templates/workflow.apex.ejs'
 const convert = (objectName, fileName) => {
   const xml_data = fs.readFileSync(fileName, "utf-8")
 
-  parseString(xml_data, (err, result) => {
+  parseString(xml_data, { explicitArray: false }, (err, result) => {
     // console.log(require('util').inspect(result, {colors: true, depth: 10}))
 
     const fieldUpdates = result.Workflow.fieldUpdates
@@ -25,19 +25,35 @@ const convert = (objectName, fileName) => {
       if (rule.formula) {
 
       } else {
+        if (!Array.isArray(rule.criteriaItems)) rule.criteriaItems = [rule.criteriaItems]
         const conditions = rule.criteriaItems.map((criteriaItem) => {
-          return `${criteriaItem.field[0].replace(/^(.+?)\./, 'record.')} ${WORKFLOW_OP_MAP[criteriaItem.operation]} '${criteriaItem.value}'`
+          return `${criteriaItem.field.replace(/^(.+?)\./, 'record.')} ${WORKFLOW_OP_MAP[criteriaItem.operation]} '${criteriaItem.value}'`
         })
 
+        if (!rule.actions) rule.actions = []
+        if (!Array.isArray(rule.actions)) rule.actions = [rule.actions]
         const actions = rule.actions.map((action) => {
           return fieldUpdates.find((fieldUpdate) => {
-            return fieldUpdate.fullName[0] == action.name[0]
+            return fieldUpdate.fullName == action.name
           })
         })
 
-        return {
-          condition: conditions.join(' AND '),
-          actions,
+        if (rule.booleanFilter) {
+          let filter = rule.booleanFilter
+          filter = filter.replace(/AND/g, '&&')
+          filter = filter.replace(/OR/g, '||')
+          for (let i = 0; i < conditions.length; i++) {
+            filter = filter.replace(i+1, conditions[i])
+          }
+          return {
+            condition: filter,
+            actions,
+          }
+        } else {
+          return {
+            condition: conditions.join(' && '),
+            actions,
+          }
         }
       }
     }).filter((rule) => rule )
@@ -60,9 +76,9 @@ const renderCode = (triggerName, objectName, rules) => {
   }
 
   const toApexCode = (action) => {
-    switch (action.operation[0]) {
+    switch (action.operation) {
       case 'Formula':
-        return `record.${action.field[0]} = ${formulaToCode(action.formula[0])};`
+        return `record.${action.field} = ${formulaToCode(action.formula)};`
     }
   }
 
