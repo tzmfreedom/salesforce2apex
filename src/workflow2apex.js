@@ -1,6 +1,7 @@
 const fs = require('fs')
 const parseString = require('xml2js').parseString
 const ejs = require('ejs')
+const FormulaToApex = require('./formula2apex')
 
 const parse = require('salesforce-formula-parser')
 
@@ -14,21 +15,24 @@ const WORKFLOW_NOT_OP_MAP = {
 
 const WORKFLOW_TEMPLATE_PATH = 'templates/workflow.apex.ejs'
 
-const convert = (objectName, fileName) => {
-  const xml_data = fs.readFileSync(fileName, "utf-8")
+const convertFromFile = (objectName, fileName) => {
+  const xml = fs.readFileSync(fileName, "utf-8")
+  convert(objectName, xml)
+}
 
-  parseString(xml_data, { explicitArray: false }, (err, result) => {
+const convert = (objectName, xml) => {
+  parseString(xml, { explicitArray: false }, (err, result) => {
     // console.log(require('util').inspect(result, {colors: true, depth: 10}))
 
     const fieldUpdates = result.Workflow.fieldUpdates
 
     const triggerName = `${objectName.replace(/__c/, '')}Trigger`
 
-    const triggerTypes = result.Workflow.rules
-                                        .map((rule) => rule.triggerType)
-                                        .filter((x, i, self) => self.indexOf(x) === i)
-
     const triggerTiming = (() => {
+      const triggerTypes = result.Workflow.rules
+        .map((rule) => rule.triggerType)
+        .filter((x, i, self) => self.indexOf(x) === i)
+
       if (triggerTypes.includes('onAllChanges')) {
         return {
           on: 'before update, before insert',
@@ -105,81 +109,6 @@ const convert = (objectName, fileName) => {
   })
 }
 
-class FormulaToApex {
-  constructor() {
-    this.code = []
-  }
-
-  visit(node) {
-    let type = node.type
-    const methodName = `visit${type.charAt(0).toUpperCase()}${type.slice(1)}`
-    return this[methodName](node)
-  }
-
-  visitString(node) {
-    return `'${node.value}'`
-  }
-
-  visitInteger(node) {
-    return node.value
-  }
-
-  visitBoolean(node) {
-    return node.value
-  }
-
-  visitOperator(node) {
-    switch(node.operator) {
-      case '+':
-      case '-':
-      case '*':
-      case '/':
-      case '==':
-      case '!=':
-      case '<':
-      case '<=':
-      case '>':
-      case '>=':
-      case '&&':
-      case '||':
-        return `${this.visit(node.left)} ${node.operator} ${this.visit(node.right)}`
-      case '&':
-        return `${this.visit(node.left)} + ${this.visit(node.right)}`
-      case '=':
-        return `${this.visit(node.left)} == ${this.visit(node.right)}`
-      case '<>':
-        return `${this.visit(node.left)} != ${this.visit(node.right)}`
-    }
-  }
-
-  visitFunction(node) {
-    switch(node.name) {
-      case 'IF':
-        let condition, ifExpression, elseExpression
-        [condition, ifExpression, elseExpression] = node.arguments
-        const conditionCode = this.visit(condition)
-        const ifCode = this.visit(ifExpression)
-        const elseCode = this.visit(elseExpression)
-        const variableName = `tmp${this.code.length + 1}`
-        this.code.push(
-        `
-        String ${variableName};
-        if (${conditionCode}) {
-          ${variableName} = ${ifCode}
-        } else {
-          ${variableName} = ${elseCode}
-        }
-        `
-        )
-        return variableName
-    }
-  }
-
-  clear() {
-    this.code = []
-  }
-}
-
 const renderCode = (triggerName, objectName, rules, triggerTiming) => {
   const visitor = new FormulaToApex()
   const toApexCode = (action) => {
@@ -208,4 +137,5 @@ const renderCode = (triggerName, objectName, rules, triggerTiming) => {
   });
 }
 
-module.exports = convert
+module.exports.convert = convert
+module.exports.convertFromFile = convertFromFile

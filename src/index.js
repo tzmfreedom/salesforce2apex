@@ -1,5 +1,5 @@
 const {Command, flags} = require('@oclif/command')
-const convert = require('./workflow2apex')
+const convert = require('./workflow2apex').convertFromFile
 
 class Salesforce2ApexCommand extends Command {
   async run() {
