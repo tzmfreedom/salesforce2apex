@@ -105,23 +105,98 @@ const convert = (objectName, fileName) => {
   })
 }
 
-const renderCode = (triggerName, objectName, rules, triggerTiming) => {
-  const formulaToCode = (formula) => {
-    const result = parse(formula)
-    if (result.type == 'string') {
-      return `'${result.value}'`
-    } else if (result.type == 'integer') {
-      return result.value
-    } else if (result.type == 'function') {
-      return result
-    }
-    return result
+OP_MAPPER = {
+  '+': 'Plus',
+  '-': 'Minus',
+  '*': 'Mul',
+  '/': 'Div',
+  '&': 'Concat'
+}
+
+class FormulaToApex {
+  constructor() {
+    this.code = []
   }
 
+  visit(node) {
+    let type = node.type
+    if (type === 'operator') {
+      type = OP_MAPPER[node.operator]
+    }
+    const methodName = `visit${type.charAt(0).toUpperCase()}${type.slice(1)}`
+    return this[methodName](node)
+  }
+
+  visitString(node) {
+    return `'${node.value}'`
+  }
+
+  visitInteger(node) {
+    return node.value
+  }
+
+  visitBoolean(node) {
+    return node.value
+  }
+
+  visitPlus(node) {
+    return `${this.visit(node.left)} + ${this.visit(node.right)}`
+  }
+
+  visitMinus(node) {
+    return `${this.visit(node.left)} - ${this.visit(node.right)}`
+  }
+
+  visitMul(node) {
+    return `${this.visit(node.left)} * ${this.visit(node.right)}`
+  }
+
+  visitDiv(node) {
+    return `${this.visit(node.left)} / ${this.visit(node.right)}`
+  }
+
+  visitConcat(node) {
+    return `${this.visit(node.left)} & ${this.visit(node.right)}`
+  }
+
+  visitFunction(node) {
+    switch(node.name) {
+      case 'IF':
+        let condition, ifExpression, elseExpression
+        [condition, ifExpression, elseExpression] = node.arguments
+        const conditionCode = this.visit(condition)
+        const ifCode = this.visit(ifExpression)
+        const elseCode = this.visit(elseExpression)
+        const variableName = `tmp${this.code.length + 1}`
+        this.code.push(
+        `
+        String ${variableName};
+        if (${conditionCode}) {
+          ${variableName} = ${ifCode}
+        } else {
+          ${variableName} = ${elseCode}
+        }
+        `
+        )
+        return variableName
+    }
+  }
+
+  clear() {
+    this.code = []
+  }
+}
+
+const renderCode = (triggerName, objectName, rules, triggerTiming) => {
+  const visitor = new FormulaToApex()
   const toApexCode = (action) => {
     switch (action.operation) {
       case 'Formula':
-        return `record.${action.field} = ${formulaToCode(action.formula)};`
+        const node = parse(action.formula)
+        const value = visitor.visit(node)
+        const result = `${visitor.code.join("\n")}newRecord.${action.field} = ${value};`
+        visitor.clear()
+        return result
     }
   }
 
