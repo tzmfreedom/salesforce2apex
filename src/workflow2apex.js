@@ -105,14 +105,6 @@ const convert = (objectName, fileName) => {
   })
 }
 
-OP_MAPPER = {
-  '+': 'Plus',
-  '-': 'Minus',
-  '*': 'Mul',
-  '/': 'Div',
-  '&': 'Concat'
-}
-
 class FormulaToApex {
   constructor() {
     this.code = []
@@ -120,9 +112,6 @@ class FormulaToApex {
 
   visit(node) {
     let type = node.type
-    if (type === 'operator') {
-      type = OP_MAPPER[node.operator]
-    }
     const methodName = `visit${type.charAt(0).toUpperCase()}${type.slice(1)}`
     return this[methodName](node)
   }
@@ -139,24 +128,28 @@ class FormulaToApex {
     return node.value
   }
 
-  visitPlus(node) {
-    return `${this.visit(node.left)} + ${this.visit(node.right)}`
-  }
-
-  visitMinus(node) {
-    return `${this.visit(node.left)} - ${this.visit(node.right)}`
-  }
-
-  visitMul(node) {
-    return `${this.visit(node.left)} * ${this.visit(node.right)}`
-  }
-
-  visitDiv(node) {
-    return `${this.visit(node.left)} / ${this.visit(node.right)}`
-  }
-
-  visitConcat(node) {
-    return `${this.visit(node.left)} & ${this.visit(node.right)}`
+  visitOperator(node) {
+    switch(node.operator) {
+      case '+':
+      case '-':
+      case '*':
+      case '/':
+      case '==':
+      case '!=':
+      case '<':
+      case '<=':
+      case '>':
+      case '>=':
+      case '&&':
+      case '||':
+        return `${this.visit(node.left)} ${node.operator} ${this.visit(node.right)}`
+      case '&':
+        return `${this.visit(node.left)} + ${this.visit(node.right)}`
+      case '=':
+        return `${this.visit(node.left)} == ${this.visit(node.right)}`
+      case '<>':
+        return `${this.visit(node.left)} != ${this.visit(node.right)}`
+    }
   }
 
   visitFunction(node) {
