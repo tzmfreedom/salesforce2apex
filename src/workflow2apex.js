@@ -2,6 +2,7 @@ const fs = require('fs')
 const parseString = require('xml2js').parseString
 const ejs = require('ejs')
 const FormulaToApex = require('./formula2apex')
+const RuntimeFunctions = require('./runtime-functions')
 
 const parse = require('salesforce-formula-parser')
 
@@ -110,7 +111,7 @@ const convert = (objectName, xml) => {
 }
 
 const renderCode = (triggerName, objectName, rules, triggerTiming) => {
-  const visitor = new FormulaToApex()
+  const visitor = new FormulaToApex(RuntimeFunctions)
   const toApexCode = (action) => {
     switch (action.operation) {
       case 'Formula':

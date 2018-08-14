@@ -1,6 +1,7 @@
 class FormulaToApex {
-  constructor() {
+  constructor(runtimeFunctions) {
     this.code = []
+    this.runtimeFunctions = runtimeFunctions
   }
 
   visit(node) {
@@ -19,6 +20,10 @@ class FormulaToApex {
 
   visitBoolean(node) {
     return node.value
+  }
+
+  visitReference(node) {
+    return node.path.join('.')
   }
 
   visitOperator(node) {
@@ -46,26 +51,7 @@ class FormulaToApex {
   }
 
   visitFunction(node) {
-    switch(node.name) {
-      case 'IF':
-        let condition, ifExpression, elseExpression
-        [condition, ifExpression, elseExpression] = node.arguments
-        const conditionCode = this.visit(condition)
-        const ifCode = this.visit(ifExpression)
-        const elseCode = this.visit(elseExpression)
-        const variableName = `tmp${this.code.length + 1}`
-        this.code.push(
-        `
-        String ${variableName};
-        if (${conditionCode}) {
-          ${variableName} = ${ifCode}
-        } else {
-          ${variableName} = ${elseCode}
-        }
-        `
-        )
-        return variableName
-    }
+    return this.runtimeFunctions[node.name](node, this)
   }
 
   clear() {
