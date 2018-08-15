@@ -26,9 +26,9 @@ module.exports = {
       `
         String ${variableName};
         if (String.isBlank(${expression})) {
-          ${variableName} = ${alternative}
+          ${variableName} = ${alternative};
         } else {
-          ${variableName} = ${expression}
+          ${variableName} = ${expression};
         }
         `
     )
@@ -49,14 +49,14 @@ module.exports = {
         const result = visitor.visit(node.arguments[2*i+2])
         codes.push(
           `if (${expression} == ${value}) {
-          ${tmpVariableName} = ${result}
+          ${tmpVariableName} = ${result};
         }`
         )
       }
       const elseResult = visitor.visit(node.arguments[node.arguments.length-1])
       codes.push(
         `{
-          ${tmpVariableName} = ${elseResult}
+          ${tmpVariableName} = ${elseResult};
         }`
       )
     } else {
@@ -66,7 +66,7 @@ module.exports = {
         const result = visitor.visit(node.arguments[2*i+2])
         codes.push(
           `if (${expression} == ${value}) {
-          ${tmpVariableName} = ${result}
+          ${tmpVariableName} = ${result};
         }`
         )
       }
@@ -147,9 +147,9 @@ module.exports = {
       `
         String ${variableName};
         if (${conditionCode}) {
-          ${variableName} = ${ifCode}
+          ${variableName} = ${ifCode};
         } else {
-          ${variableName} = ${elseCode}
+          ${variableName} = ${elseCode};
         }
         `
     )
