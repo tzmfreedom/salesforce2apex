@@ -3,9 +3,9 @@ trigger <%= triggerName %> on <%= objectName %> (<%= triggerTiming.on %>) {
     for (<%= objectName %> newRecord : Trigger.New) {
       <%= objectName %> oldRecord = Trigger.oldMap.get(newRecord.id);
       <% rules.forEach((rule) => { %>
-      if (<%- rule.condition %>) {
+      <%- rule.condition %>
         <% rule.actions.forEach((action) => { %>
-          <%- toApexCode(action) %>
+          <%- formula2apex(action) %>
         <% }) %>
       }
       <% }) %>

@@ -1,10 +1,9 @@
 const fs = require('fs')
 const parseString = require('xml2js').parseString
 const ejs = require('ejs')
-const FormulaToApex = require('./formula2apex')
-const RuntimeFunctions = require('./runtime-functions')
 
 const parse = require('salesforce-formula-parser')
+const convertVisitor = require('./formula2apex')
 
 const WORKFLOW_OP_MAP = {
   equals: '==',
@@ -23,113 +22,114 @@ const convertFromFile = (objectName, fileName) => {
 
 const convert = (objectName, xml) => {
   parseString(xml, { explicitArray: false }, (err, result) => {
-    // console.log(require('util').inspect(result, {colors: true, depth: 10}))
-
-    const fieldUpdates = result.Workflow.fieldUpdates
-
     const triggerName = `${objectName.replace(/__c/, '')}Trigger`
+    const triggerTiming = getTriggerTiming(result.Workflow.rules)
+    const rules = getRules(result.Workflow.rules, result.Workflow.fieldUpdates)
 
-    const triggerTiming = (() => {
-      const triggerTypes = result.Workflow.rules
-        .map((rule) => rule.triggerType)
-        .filter((x, i, self) => self.indexOf(x) === i)
-
-      if (triggerTypes.includes('onAllChanges')) {
-        return {
-          on: 'before update, before insert',
-          condition: 'Trigger.isBefore && (Trigger.isInsert || Trigger.isUpdate)'
-        }
-      } else if (triggerTypes.includes('onCreateOrTriggeringUpdate')) {
-        return {
-          on: 'before update, before insert',
-          condition: 'Trigger.isBefore && (Trigger.isInsert || Trigger.isUpdate)'
-        }
-      } else if (triggerTypes.includes('onCreateOnly')) {
-        return {
-          on: 'before insert',
-          condition: 'Trigger.isBefore && Trigger.isInsert'
-        }
-      }
-    })()
-
-    const rules = result.Workflow.rules.map((rule) => {
-      const triggerType = rule.triggerType
-
-      if (rule.active[0] == 'false') return
-
-      if (rule.formula) {
-
-      } else {
-        if (!Array.isArray(rule.criteriaItems)) rule.criteriaItems = [rule.criteriaItems]
-        const conditions = rule.criteriaItems.map((criteriaItem) => {
-          const newField = criteriaItem.field.replace(/^(.+?)\./, 'newRecord.')
-          const oldField = criteriaItem.field.replace(/^(.+?)\./, 'oldRecord.')
-          const operator = WORKFLOW_OP_MAP[criteriaItem.operation]
-          const not_operator = WORKFLOW_NOT_OP_MAP[criteriaItem.operation]
-          const value = criteriaItem.value
-
-          switch(triggerType) {
-            case 'onAllChanges':
-              return `${newField} ${operator} '${value}'`
-            case 'onCreateOnly':
-              return `${newField} ${operator} '${value}'`
-            case 'onCreateOrTriggeringUpdate':
-              return `(${oldField} ${not_operator} '${value}' && ${newField} ${operator} '${value}')`
-          }
-        })
-
-        if (!rule.actions) rule.actions = []
-        if (!Array.isArray(rule.actions)) rule.actions = [rule.actions]
-        const actions = rule.actions.map((action) => {
-          return fieldUpdates.find((fieldUpdate) => {
-            return fieldUpdate.fullName == action.name
-          })
-        })
-
-        if (rule.booleanFilter) {
-          let filter = rule.booleanFilter
-          filter = filter.replace(/AND/g, '&&')
-          filter = filter.replace(/OR/g, '||')
-          for (let i = 0; i < conditions.length; i++) {
-            filter = filter.replace(i+1, conditions[i])
-          }
-          return {
-            condition: filter,
-            actions,
-          }
-        } else {
-          return {
-            condition: conditions.join(' && '),
-            actions,
-          }
-        }
-      }
-    }).filter((rule) => rule )
-
-    renderCode(triggerName, objectName, rules, triggerTiming)
+    renderCode({ triggerName, objectName, rules, triggerTiming })
   })
 }
 
-const renderCode = (triggerName, objectName, rules, triggerTiming) => {
-  const visitor = new FormulaToApex(RuntimeFunctions)
-  const toApexCode = (action) => {
-    switch (action.operation) {
-      case 'Formula':
-        const node = parse(action.formula)
-        const value = visitor.visit(node)
-        const result = `${visitor.code.join("\n")}newRecord.${action.field} = ${value};`
-        visitor.clear()
-        return result
+const getTriggerTiming = (rules) => {
+  const triggerTypes = rules.map((rule) => rule.triggerType)
+                            .filter((x, i, self) => self.indexOf(x) === i)
+
+  if (triggerTypes.includes('onAllChanges')) {
+    return {
+      on: 'before update, before insert',
+      condition: 'Trigger.isBefore && (Trigger.isInsert || Trigger.isUpdate)'
+    }
+  } else if (triggerTypes.includes('onCreateOrTriggeringUpdate')) {
+    return {
+      on: 'before update, before insert',
+      condition: 'Trigger.isBefore && (Trigger.isInsert || Trigger.isUpdate)'
+    }
+  } else if (triggerTypes.includes('onCreateOnly')) {
+    return {
+      on: 'before insert',
+      condition: 'Trigger.isBefore && Trigger.isInsert'
     }
   }
+}
 
-  ejs.renderFile(WORKFLOW_TEMPLATE_PATH, {
-    triggerName,
-    objectName,
-    rules,
-    toApexCode,
-    triggerTiming
-  }, {}, function (err, str) {
+const getRules = (rules, fieldUpdates) => {
+  return rules.map((rule) => {
+    const triggerType = rule.triggerType
+
+    if (rule.active[0] == 'false') return
+
+    if (rule.formula) {
+      const node = parse(rule.formula)
+      const value = convertVisitor.visit(node)
+      const condition = `${convertVisitor.code.join("\n")}if (${value}) {`
+      const actions = getActions(fieldUpdates, rule)
+      convertVisitor.clear()
+      return {
+        condition,
+        actions,
+      }
+    }
+    if (!Array.isArray(rule.criteriaItems)) rule.criteriaItems = [rule.criteriaItems]
+    const conditions = rule.criteriaItems.map((criteriaItem) => {
+      const newField = criteriaItem.field.replace(/^(.+?)\./, 'newRecord.')
+      const oldField = criteriaItem.field.replace(/^(.+?)\./, 'oldRecord.')
+      const operator = WORKFLOW_OP_MAP[criteriaItem.operation]
+      const not_operator = WORKFLOW_NOT_OP_MAP[criteriaItem.operation]
+      const value = criteriaItem.value
+
+      switch(triggerType) {
+        case 'onAllChanges':
+          return `${newField} ${operator} '${value}'`
+        case 'onCreateOnly':
+          return `${newField} ${operator} '${value}'`
+        case 'onCreateOrTriggeringUpdate':
+          return `(${oldField} ${not_operator} '${value}' && ${newField} ${operator} '${value}')`
+      }
+    })
+
+    const actions = getActions(fieldUpdates, rule)
+    if (rule.booleanFilter) {
+      let filter = rule.booleanFilter
+      filter = filter.replace(/AND/g, '&&')
+      filter = filter.replace(/OR/g, '||')
+      for (let i = 0; i < conditions.length; i++) {
+        filter = filter.replace(i+1, conditions[i])
+      }
+      return {
+        condition: `if (${filter}) {`,
+        actions,
+      }
+    }
+    return {
+      condition: `if (${conditions.join(' && ')}) {`,
+      actions,
+    }
+  })
+}
+
+const getActions = (fieldUpdates, rule) => {
+  if (!rule.actions) rule.actions = []
+  if (!Array.isArray(rule.actions)) rule.actions = [rule.actions]
+  return rule.actions.map((action) => {
+    return fieldUpdates.find((fieldUpdate) => {
+      return fieldUpdate.fullName == action.name
+    })
+  })
+}
+
+const formula2apex = (action) => {
+  switch (action.operation) {
+    case 'Formula':
+      const node = parse(action.formula)
+      const value = convertVisitor.visit(node)
+      const result = `${convertVisitor.code.join("\n")}newRecord.${action.field} = ${value};`
+      convertVisitor.clear()
+      return result
+  }
+}
+
+const renderCode = (context) => {
+  ejs.renderFile(WORKFLOW_TEMPLATE_PATH, Object.assign({ formula2apex }, context), {}, (err, str) => {
     if (err) {
       console.error(err)
       return
