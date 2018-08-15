@@ -6,11 +6,31 @@ const parse = require('salesforce-formula-parser')
 const convertVisitor = require('./formula2apex')
 
 const WORKFLOW_OP_MAP = {
-  equals: '==',
+  equals: '${1} == ${2}',
+  notEqual: '${1} != ${2}',
+  lessThan: '${1} < ${2}',
+  greaterThan: '${1} > ${2}',
+  lessOrEqual: '${1} <= ${2}',
+  greaterOrEqual: '${1} >= ${2}',
+  contains: '${1}.contains(${2})',
+  notContain: '!(${1}.contains(${2}))',
+  startsWith: '${1}.startWith(${2})',
+  includes: "${1}.split(',').contains(${2})",
+  excludes: "!(${1}.split(',').contains(${2}))",
 }
 
 const WORKFLOW_NOT_OP_MAP = {
-  equals: '!=',
+  equals: '${1} != ${2}',
+  notEqual: '${1} == ${2}',
+  lessThan: '${1} >= ${2}',
+  greaterThan: '${1} <= ${2}',
+  lessOrEqual: '${1} > ${2}',
+  greaterOrEqual: '${1} < ${2}',
+  contains: '!(${1}.contains(${2}))',
+  notContain: '${1}.contains(${2})',
+  startsWith: '!(${1}.startWith(${2}))',
+  includes: "!(${1}.split(',').contains(${2}))",
+  excludes: "${1}.split(',').contains(${2})",
 }
 
 const WORKFLOW_TEMPLATE_PATH = 'templates/workflow.apex.ejs'
@@ -60,10 +80,9 @@ const getRules = (rules, fieldUpdates) => {
 
     if (rule.formula) {
       const node = parse(rule.formula)
-      const value = convertVisitor.visit(node)
+      const value = convertVisitor.run(node)
       const condition = `${convertVisitor.code.join("\n")}if (${value}) {`
       const actions = getActions(fieldUpdates, rule)
-      convertVisitor.clear()
       return {
         condition,
         actions,
@@ -79,11 +98,13 @@ const getRules = (rules, fieldUpdates) => {
 
       switch(triggerType) {
         case 'onAllChanges':
-          return `${newField} ${operator} '${value}'`
+          return operator.replace('${1}', newField).replace('${2}', "'" + value + "'")
         case 'onCreateOnly':
-          return `${newField} ${operator} '${value}'`
+          return operator.replace('${1}', newField).replace('${2}', "'" + value + "'")
         case 'onCreateOrTriggeringUpdate':
-          return `(${oldField} ${not_operator} '${value}' && ${newField} ${operator} '${value}')`
+          const before = not_operator.replace('${1}', oldField).replace('${2}', "'" + value + "'")
+          const after = operator.replace('${1}', newField).replace('${2}', "'" + value + "'")
+          return `(${before} && ${after})`
       }
     })
 
@@ -121,9 +142,8 @@ const formula2apex = (action) => {
   switch (action.operation) {
     case 'Formula':
       const node = parse(action.formula)
-      const value = convertVisitor.visit(node)
+      const value = convertVisitor.run(node)
       const result = `${convertVisitor.code.join("\n")}newRecord.${action.field} = ${value};`
-      convertVisitor.clear()
       return result
   }
 }

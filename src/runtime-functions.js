@@ -153,7 +153,7 @@ module.exports = {
     return `${visitor.visit(node.arguments[0])} != null`
   },
   ISNUMBER: (node, visitor) => {
-    return `double.valueOf(${visitor.visit(node.arguments[0])})`
+    return `String.isNumeric(${visitor.visit(node.arguments[0])})`
   },
   ISPICKVAL: (node, visitor) => {
     return `${visitor.visit(node.arguments[0])} == ${visitor.visit(node.arguments[1])}`

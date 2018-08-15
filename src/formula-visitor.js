@@ -4,6 +4,11 @@ class FormulaVisitor {
     this.runtimeFunctions = runtimeFunctions
   }
 
+  run(node) {
+    this.clear()
+    this.visit(node)
+  }
+
   visit(node) {
     let type = node.type
     const methodName = `visit${type.charAt(0).toUpperCase()}${type.slice(1)}`

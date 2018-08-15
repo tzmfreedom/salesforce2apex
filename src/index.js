@@ -12,15 +12,11 @@ class Salesforce2ApexCommand extends Command {
   }
 }
 
-Salesforce2ApexCommand.description = `Describe the command here
-...
-Extra documentation goes here
+Salesforce2ApexCommand.description = `Convert Salesforce WorkflowRules to ApexTrigger
 `
 
 Salesforce2ApexCommand.flags = {
-  // add --version flag to show CLI version
   version: flags.version({char: 'v'}),
-  // add --help flag to show CLI version
   help: flags.help({char: 'h'}),
   object: flags.string({char: 'o', description: 'object name'}),
   file: flags.string({char: 'f', description: 'parse metadata filepath'}),
