@@ -39,23 +39,45 @@ module.exports = {
     return "'\n'"
   },
   CASE: (node, visitor) => {
-    let condition, ifExpression, elseExpression
-    [condition, ifExpression, elseExpression] = node.arguments
-    const conditionCode = visitor.visit(condition)
-    const ifCode = visitor.visit(ifExpression)
-    const elseCode = visitor.visit(elseExpression)
-    const variableName = `tmp${visitor.code.length + 1}`
+    const expression = visitor.visit(node.arguments[0])
+    const tmpVariableName = `tmp${visitor.code.length + 1}`
+    const codes = []
+    if (node.arguments.length % 2 === 0) {
+      const imax = (node.arguments.length - 2)/ 2
+      for (let i = 0; i < imax; i++) {
+        const value = visitor.visit(node.arguments[2*i+1])
+        const result = visitor.visit(node.arguments[2*i+2])
+        codes.push(
+          `if (${expression} == ${value}) {
+          ${tmpVariableName} = ${result}
+        }`
+        )
+      }
+      const elseResult = visitor.visit(node.arguments[node.arguments.length-1])
+      codes.push(
+        `{
+          ${tmpVariableName} = ${elseResult}
+        }`
+      )
+    } else {
+      const imax = (node.arguments.length - 1)/ 2
+      for (let i = 0; i < imax; i++) {
+        const value = visitor.visit(node.arguments[2*i+1])
+        const result = visitor.visit(node.arguments[2*i+2])
+        codes.push(
+          `if (${expression} == ${value}) {
+          ${tmpVariableName} = ${result}
+        }`
+        )
+      }
+    }
     visitor.code.push(
       `
-        String ${variableName};
-        if (${conditionCode}) {
-          ${variableName} = ${ifCode}
-        } else {
-          ${variableName} = ${elseCode}
-        }
+        String ${tmpVariableName};
+        ${codes.join(" else ")}
         `
     )
-    return variableName
+    return tmpVariableName
   },
   CASESAFEID: (node, visitor) => {
   },
