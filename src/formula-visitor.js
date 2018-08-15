@@ -6,7 +6,7 @@ class FormulaVisitor {
 
   run(node) {
     this.clear()
-    this.visit(node)
+    return this.visit(node)
   }
 
   visit(node) {

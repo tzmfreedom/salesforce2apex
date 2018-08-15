@@ -1,7 +1,7 @@
 const fs = require('fs')
 const parseString = require('xml2js').parseString
 const ejs = require('ejs')
-
+const path = require('path')
 const parse = require('salesforce-formula-parser')
 const convertVisitor = require('./formula2apex')
 
@@ -33,7 +33,7 @@ const WORKFLOW_NOT_OP_MAP = {
   excludes: "${1}.split(',').contains(${2})",
 }
 
-const WORKFLOW_TEMPLATE_PATH = 'templates/workflow.apex.ejs'
+const WORKFLOW_TEMPLATE_PATH = '../templates/workflow.apex.ejs'
 
 const convertFromFile = (objectName, fileName) => {
   const xml = fs.readFileSync(fileName, "utf-8")
@@ -149,7 +149,7 @@ const formula2apex = (action) => {
 }
 
 const renderCode = (context) => {
-  ejs.renderFile(WORKFLOW_TEMPLATE_PATH, Object.assign({ formula2apex }, context), {}, (err, str) => {
+  ejs.renderFile(path.resolve(__dirname, WORKFLOW_TEMPLATE_PATH), Object.assign({ formula2apex }, context), {}, (err, str) => {
     if (err) {
       console.error(err)
       return
