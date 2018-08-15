@@ -1,7 +1,7 @@
 {
   "name": "salesforce2apex",
   "description": "Salesforce Apex Code Generator from Salesforce Workflow",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "tzmfreedom",
   "bin": {
     "salesforce2apex": "./bin/run"
